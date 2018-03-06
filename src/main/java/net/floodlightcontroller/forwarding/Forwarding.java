@@ -525,6 +525,8 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	        //log.info("error: " + e.toString());
 	    }
 	    
+	    //for ---
+	    
 	    if( null == multirouting){
 	        route =  null;
 	    }else{
@@ -545,7 +547,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		        	dstAp.getNodeId(), 
 		        	dstAp.getPortId());
 	     
-	    //System.out.println("Forwarding path: " + route.toString());
+	    //System.out.println("src = " + srcSw + "dst = " + dstAp.getNodeId() + "Forwarding path: " + route.toString());
 	    //computeDecision.PrintPortBandwidth(); //computeDecision can be use
 	    
 	    Match m = createMatchFromPacket(sw, srcPort, pi, cntx);

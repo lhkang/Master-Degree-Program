@@ -191,15 +191,16 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
         MultiRoute result = null;
         
         /*do't get the ports bandwidth*/
-        if(portCollectorSize == 0){
-        	
-        	try{
-        		result = multipath.getRoute(srcDpid, 
+        if(portCollectorSize == 0 ){
+        	if(!srcDpid.equals(dstDpid)){
+        		try{
+        			result = sortMultipath(
+        				multipath.getRoute(srcDpid, 
     		    		srcPort, 
     		    		dstDpid, 
-    		    		dstPort);
-            }catch (Exception e){}
-        	
+    		    		dstPort));
+        		}catch (Exception e){}
+        	}
         }else{
         
 	        try{
@@ -210,19 +211,21 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	        
         }
         
-        /* if result is congestion re-search database */
-        if( isCongestion(result).getFlag() && portCollectorSize != 0 ){
-        	System.out.println("Network congestion! ");
-        	
-        	/* Delete this flow from paths database  */
-        	flowcache.invalidate(id);
-        	
-        	try {
-				result = flowcache.get(id);
-			} catch (ExecutionException e) {
-				// TODO Auto-generated catch block
-				//e.printStackTrace();
-			}
+        if( portCollectorSize != 0 ){
+        	/* if result is congestion re-search database */
+            if( isCongestion(result).getFlag()){
+            	System.out.println("Network congestion! ");
+            	
+            	/* Delete this flow from paths database  */
+            	flowcache.invalidate(id);
+            	
+            	try {
+    				result = flowcache.get(id);
+    			} catch (ExecutionException e) {
+    				// TODO Auto-generated catch block
+    				//e.printStackTrace();
+    			}
+            }
         }
         
         //add load balance module ! 
@@ -264,7 +267,8 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    	for(int i = 0; i < pathSize; i++){
 	    		List<NodePortTuple> switchPortList = multipath.getRoute(i).getPath();
 	    		Integer max = 0;
-	    		//boolean flag = true;
+	    		
+	    		if(portCollectorSize != 0)
 	    		for (int indx = switchPortList.size() - 1; indx > 0; indx -= 2) {
 	    			//System.out.println("path " + i + ":" + switchPortList.get(indx).toString());
 	    			Integer Bandwidth;
@@ -283,10 +287,8 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    				
 	                }catch(Exception ex){}
 	    		}
-	    		//if(flag){
 	    			FlowCost Cost = new FlowCost(multipath.getRoute(i),max); //10000-max
 	    			pathList.add(Cost);
-	    		//}
 	    	}
 	    	Collections.sort(pathList);
 	    	return findDisjointPath(pathList, pathSize);
@@ -327,10 +329,12 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	}
     	// some mistake ?
     	/* print out all disjoint path and no one are congestion*/
-    	for(int l = 0 ; l < disjoint.getRouteSize(); l++){
+    	
+    	/*for(int l = 0 ; l < disjoint.getRouteSize(); l++){
     		if(disjoint.getLocation().contains(l)) continue;
     		System.out.println("disjoint path " + l + ":" + disjoint.getRoute(l).toString());
-    	}
+    	}*/
+    	
     	//System.out.println("disjoint count :" + disjoint.getRouteSize());
     	return disjoint;
     }
