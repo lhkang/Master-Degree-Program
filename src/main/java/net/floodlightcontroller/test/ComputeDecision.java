@@ -128,58 +128,19 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	
 	
 	private synchronized void startCollectBandwidth(){
-    	//ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-    	//service.scheduleAtFixedRate(runnable, Interval, Interval, TimeUnit.SECONDS);
-    	portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new StartPortThred(), Interval, Interval, TimeUnit.SECONDS);
+		portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new StartPortThred(), Interval, Interval, TimeUnit.SECONDS);
 	}
-	/*
-	Runnable runnable = new Runnable() {
-    	public void run() {
-    		BandwidthMap = new HashMap<DatapathId,Map<OFPort,Long>>();
-    	    Queue = new HashMap<DatapathId,HashMap<Integer,ArrayList>>();
-    		
-    		StartPortThred sp = new StartPortThred();
-	        sp.start();
-	        
-    		//StartQueueThred sq = new StartQueueThred();
-    		//sq.start();
-    		
-    		try {
-				//sq.join();
-				sp.join();
-    		} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-    		//PrintPortBandwidth();
-        }
-    };
-	*/
 	
     protected class StartPortThred extends Thread{
-    	//private Map<NodePortTuple,SwitchPortBandwidth> bandwidth;
-    	
     	public void run(){
     		//portCollectorSize = 0;
     		BandwidthMap = new HashMap<DatapathId,Map<OFPort,Long>>();
     		BandwidthMap =  ((MonitorBandwidth) monitorbandwidth).collectBandwidth();
-    		
     		portCollectorSize = monitorbandwidth.getBandwidthMap().size();
-    		//bandwidth =  monitorbandwidth.getBandwidthMap();       
 	        System.out.println("Networks Size:"+ portCollectorSize +"\n");
 	        
     	}
     }
-    
-    //reference get statics API from floodlight do well multi thread
-    /*
-    protected class StartQueueThred extends Thread{
-    	public void run(){
-    		getqueuestatus.startCollectBandwidth();//this function not thing to do
-    	    Queue = getqueuestatus.collectQueue();
-    	    //PrintPortBandwidth();
-    	}
-    }
-    */
     
     /* For Forwarding module */
     public MultiRoute Route(DatapathId srcDpid, OFPort srcPort, DatapathId dstDpid, OFPort dstPort) {
@@ -189,44 +150,31 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 
         FlowId id = new FlowId(srcDpid,srcPort,dstDpid,dstPort);
         MultiRoute result = null;
-        
-        /*do't get the ports bandwidth*/
-        if(portCollectorSize == 0 ){
-        	if(!srcDpid.equals(dstDpid)){
-        		try{
-        			result = sortMultipath(
-        				multipath.getRoute(srcDpid, 
-    		    		srcPort, 
-    		    		dstDpid, 
-    		    		dstPort));
-        		}catch (Exception e){}
-        	}
-        }else{
-        
-	        try{
+
+        if(!srcDpid.equals(dstDpid)){
+        	try{
 	            result = flowcache.get(id);
 	        }catch (Exception e){
 	            //logger.error("error {}",e.toString());
-	        }
-	        
+	        }	
         }
+
+        /* if result is congestion re-search database */
+           if( portCollectorSize != 0 && isCongestion(result).getFlag() ){
+	            //System.out.println("Network congestion! ");
+	            System.out.println("Re-routing! ");
+	            
+	            /* Delete this flow from paths database  */
+	            flowcache.invalidate(id);
+	            	
+	            try {
+	    			result = flowcache.get(id);
+	    		} catch (ExecutionException e) {
+	    			// TODO Auto-generated catch block
+	    			//e.printStackTrace();
+	    		}
+           }
         
-        if( portCollectorSize != 0 ){
-        	/* if result is congestion re-search database */
-            if( isCongestion(result).getFlag()){
-            	System.out.println("Network congestion! ");
-            	
-            	/* Delete this flow from paths database  */
-            	flowcache.invalidate(id);
-            	
-            	try {
-    				result = flowcache.get(id);
-    			} catch (ExecutionException e) {
-    				// TODO Auto-generated catch block
-    				//e.printStackTrace();
-    			}
-            }
-        }
         
         //add load balance module ! 
         
@@ -327,7 +275,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     			}
     		}
     	}
-    	// some mistake ?
+    	
     	/* print out all disjoint path and no one are congestion*/
     	
     	/*for(int l = 0 ; l < disjoint.getRouteSize(); l++){
@@ -372,10 +320,6 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		    			paths.addlocation(i);
 		    			//break NestedLoop;
 		    		}
-	    		//}else{
-	    		//	iFlag = true;
-	    		//	paths.addlocation(i);
-	    		//}
 	    	}
     	}
     	paths.CongestionFlag(iFlag);
