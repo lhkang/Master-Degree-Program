@@ -137,7 +137,8 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
     private static final long FLOWSET_MASK = ((1L << FLOWSET_BITS) - 1) << FLOWSET_SHIFT;
     private static final long FLOWSET_MAX = (long) (Math.pow(2, FLOWSET_BITS) - 1);
     protected static FlowSetIdRegistry flowSetIdRegistry;
-
+    Integer routeCount = 0;
+    
     protected static class FlowSetIdRegistry {
         private volatile Map<NodePortTuple, Set<U64>> nptToFlowSetIds;
         private volatile Map<U64, Set<NodePortTuple>> flowSetIdToNpts;
@@ -494,7 +495,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    U64 cookie = makeForwardingCookie(decision, flowSetId);
 
 	    Path route = null;
-	    MultiRoute multirouting = null;
+	    MultiRoute paths = null;
 	        
 	    /*
 	    Path path = routingEngineService.getPath(srcSw, 
@@ -508,18 +509,18 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
 	   
 	    try{
-		    //multirouting = multipath.getRoute(srcSw, 
+		    //paths = multipath.getRoute(srcSw, 
 		    //		srcPort, 
 		    //		dstAp.getNodeId(), 
 		    //  		dstAp.getPortId());
 		    
 	    	
-	    	multirouting = computeDecision.Route(srcSw, 
+	    	paths = computeDecision.Route(srcSw, 
 		    		srcPort, 
 		    		dstAp.getNodeId(), 
 		      		dstAp.getPortId());
 	    	
-	    	//multirouting = computeDecision.FlowRoute(id);
+	    	//paths = computeDecision.FlowRoute(id);
 	    	
 	    }catch(Exception e){
 	        //log.info("error: " + e.toString());
@@ -527,7 +528,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    
 	    //for ---
 	    
-	    if( null == multirouting){
+	    if( null == paths){
 	        route =  null;
 	    }else{
 	    	/*
@@ -537,8 +538,12 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		    	System.out.println("path :" + i +":" + routing.toString());
 		    }
 	    	*/
-	    	
-		    route = multirouting.getRoute(0);
+	    	routeCount = (routeCount+1) % paths.getRouteSize();
+	    	route = paths.getRoute(routeCount);
+	    	//route = paths.getRoute(0);
+		    
+		    /*route = paths.getsequenceRoute();*/
+		    
 		    //route = computeDecision.sortMultipath(multirouting).getRoute(0);
 	    }
 	    

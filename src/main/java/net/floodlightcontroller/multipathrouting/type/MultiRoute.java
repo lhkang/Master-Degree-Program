@@ -11,9 +11,11 @@ public class MultiRoute {
 	 protected ArrayList<Path> routes;
 	 protected Set<Integer> location; /*record congestion paths*/
 	 boolean Flag;
+	 protected int sequenceRoute;
 	 
 	 public MultiRoute(){
 		 routeSize = 0;
+		 sequenceRoute = 0;
 		 routes = new ArrayList<Path>();
 		 location = new HashSet<Integer>();
 		 Flag = false;
@@ -21,6 +23,11 @@ public class MultiRoute {
 	 
 	 public Path getRoute(int routeCount){
 	     return routes.get(routeCount);
+	 }
+	 
+	 public Path getsequenceRoute(){
+		 sequenceRoute = (sequenceRoute + 1)%routeSize;
+	     return routes.get(sequenceRoute);
 	 }
 	 
 	 public ArrayList<Path> getAllRoute(){

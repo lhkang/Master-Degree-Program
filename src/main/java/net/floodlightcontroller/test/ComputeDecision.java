@@ -133,8 +133,9 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	
     protected class StartPortThred extends Thread{
     	public void run(){
-    		//portCollectorSize = 0;
+    		portCollectorSize = 0;
     		BandwidthMap = new HashMap<DatapathId,Map<OFPort,Long>>();
+    		BandwidthMap.clear();
     		BandwidthMap =  ((MonitorBandwidth) monitorbandwidth).collectBandwidth();
     		portCollectorSize = monitorbandwidth.getBandwidthMap().size();
 	        System.out.println("Networks Size:"+ portCollectorSize +"\n");
@@ -160,7 +161,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
         }
 
         /* if result is congestion re-search database */
-           if( portCollectorSize != 0 && isCongestion(result).getFlag() ){
+           if( portCollectorSize != 0 && isCongestion(result) ){
 	            //System.out.println("Network congestion! ");
 	            System.out.println("Re-routing! ");
 	            
@@ -268,7 +269,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     		if(!locationMap.contains(index)){
     			disjoint.addRoute(paths.get(index).getFlowCostPath());
     			//record disjoint congestion path, in order to avoid use congestion path
-    			if(paths.get(index).getCost() >= 5000){
+    			if(paths.get(index).getCost() >= 7000){
     				disjoint.CongestionFlag(true);
     				disjoint.addlocation(index);
     				//show paths
@@ -278,10 +279,10 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	
     	/* print out all disjoint path and no one are congestion*/
     	
-    	/*for(int l = 0 ; l < disjoint.getRouteSize(); l++){
+    	for(int l = 0 ; l < disjoint.getRouteSize(); l++){
     		if(disjoint.getLocation().contains(l)) continue;
     		System.out.println("disjoint path " + l + ":" + disjoint.getRoute(l).toString());
-    	}*/
+    	}
     	
     	//System.out.println("disjoint count :" + disjoint.getRouteSize());
     	return disjoint;
@@ -302,10 +303,10 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	return result;
     }
     
-    public MultiRoute isCongestion(MultiRoute paths){
+    public boolean isCongestion(MultiRoute paths){
 		
     	boolean iFlag = false;
-    	paths.initialtion(); 
+    	//paths.initialtion(); 
     	
     	//NestedLoop:
     	for (int i = 0; i < paths.getRouteSize(); i++){
@@ -317,13 +318,13 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		            //System.out.println("Bandwidth:" + Bandwidth ); 
 		            if(Bandwidth >= 5000){
 		    			iFlag = true;
-		    			paths.addlocation(i);
+		    			//paths.addlocation(i);
 		    			//break NestedLoop;
 		    		}
 	    	}
     	}
-    	paths.CongestionFlag(iFlag);
-    	return paths;
+    	//paths.CongestionFlag(iFlag);
+    	return iFlag;
     }
     
     public void PrintPortBandwidth(){
