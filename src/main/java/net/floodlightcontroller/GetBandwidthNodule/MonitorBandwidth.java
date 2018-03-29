@@ -143,7 +143,7 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
 	}
 	
 	@Override
-	public java.util.Map<NodePortTuple,SwitchPortBandwidth> getBandwidthMap(){
+	public Map<NodePortTuple,SwitchPortBandwidth> getBandwidthMap(){
         bandwidth = statisticsService.getBandwidthConsumption();
       
         Set<DatapathId> switchDpid = switchService.getAllSwitchDpids();

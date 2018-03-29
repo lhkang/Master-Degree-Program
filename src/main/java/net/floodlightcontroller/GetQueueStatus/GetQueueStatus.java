@@ -182,7 +182,7 @@ public class GetQueueStatus implements IFloodlightModule, IGetQueueStatusService
     	}
     }
 	
-	public java.util.Map<DatapathId, HashMap<Integer, ArrayList>> collectQueue(){
+	public Map<DatapathId, HashMap<Integer, ArrayList>> collectQueue(){
 		return portQueue;
 	}
 	
