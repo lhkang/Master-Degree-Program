@@ -72,9 +72,9 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
 	private static IOFSwitchService switchService;
 	private static IStaticEntryPusherService sfpService;
 	protected static Logger logger;
-	//private static IThreadPoolService threadPoolService;
-	//private static ScheduledFuture<?> portBandwidthCollector;
-	//private static final int portBandwidthInterval = 15;
+	private static IThreadPoolService threadPoolService;
+	private static ScheduledFuture<?> portBandwidthCollector;
+	private static final int portBandwidthInterval = 15;
 	
 	private static Map<NodePortTuple,SwitchPortBandwidth> bandwidth;
 	public Map<DatapathId,Map<OFPort,Long>> BandwidthMap = new HashMap<DatapathId,Map<OFPort,Long>>();
@@ -110,7 +110,7 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
         statisticsService = context.getServiceImpl(IStatisticsService.class);
         switchService = context.getServiceImpl(IOFSwitchService.class);
         sfpService = context.getServiceImpl(IStaticEntryPusherService.class);
-        //threadPoolService = context.getServiceImpl(IThreadPoolService.class);
+        threadPoolService = context.getServiceImpl(IThreadPoolService.class);
 	}
 
 	@Override
@@ -119,8 +119,8 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
 	}
 
 	private synchronized void startCollectBandwidth(){
-        //portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new GetBandwidthThread(), portBandwidthInterval, portBandwidthInterval, TimeUnit.SECONDS);
-        //log.warn("Statistics collection thread(s) started");
+        portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new GetBandwidthThread(), portBandwidthInterval, portBandwidthInterval, TimeUnit.SECONDS);
+        log.warn("Statistics collection thread(s) started");
     }
 	
 	private class GetBandwidthThread extends Thread implements Runnable  {
@@ -132,9 +132,9 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
     	        
 	        @Override
 	        public void run() {
-	        	//System.out.println("GetBandwidthThread run()....");
+	        	System.out.println("GetBandwidthThread run()....");
 	            bandwidth = getBandwidthMap(); 
-	            //System.out.println("bandwidth.size():"+bandwidth.size());
+	            System.out.println("bandwidth.size():"+bandwidth.size());
 	        }
 	 }
 	
@@ -144,40 +144,32 @@ public class MonitorBandwidth implements IFloodlightModule,IMonitorBandwidthServ
 	
 	@Override
 	public Map<NodePortTuple,SwitchPortBandwidth> getBandwidthMap(){
-        bandwidth = statisticsService.getBandwidthConsumption();
-      
-        Set<DatapathId> switchDpid = switchService.getAllSwitchDpids();
-        Map<OFPort,Long> ports  = null;
-        
-        for(DatapathId l : switchDpid){
-        	//System.out.println("Switch Mac" + l + "\n");
-        	ports  = new HashMap<OFPort,Long>();
-        	
-        	for(Map.Entry<NodePortTuple,SwitchPortBandwidth> entrys :bandwidth.entrySet()){
-        		 NodePortTuple tuple  = entrys.getKey();
-        		 if(l == tuple.getNodeId()){
-        			 SwitchPortBandwidth switchPortBand = entrys.getValue();
-        			 Long value = switchPortBand.getBitsPerSecondRx().getValue() / (8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
-        			 
-        			 ports.put(tuple.getPortId(), value);
-        		 }
-        	}
-        	BandwidthMap.put(l, ports);
+		bandwidth = statisticsService.getBandwidthConsumption();
+//      
+//      for(NodePortTuple tuple:bandwidth.keySet()){
+//          System.out.println(tuple.getNodeId().toString()+","+tuple.getPortId().getPortNumber());
+//          System.out.println();
+//      }
+		
+		/*
+        Iterator<Entry<NodePortTuple,SwitchPortBandwidth>> iter = bandwidth.entrySet().iterator();
+        while (iter.hasNext()) {
+            Entry<NodePortTuple,SwitchPortBandwidth> entry = iter.next();
+            NodePortTuple tuple  = entry.getKey();
+            SwitchPortBandwidth switchPortBand = entry.getValue();
+            System.out.print(tuple.getNodeId()+","+tuple.getPortId().getPortNumber()+",");
+            System.out.println(switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024));
+
         }
-        //print(BandwidthMap);
+		*/
+
         return bandwidth;
     }
-	
-	public void print(Map<DatapathId,Map<OFPort,Long>> sw){
-		for(Map.Entry<DatapathId, Map<OFPort,Long>> iter : sw.entrySet()){
-    		System.out.println("Switch MacAddress : " + iter.getKey()+ "\n");
-    		Map<OFPort,Long> swPort = iter.getValue();
-    		
-    		for(Map.Entry<OFPort, Long> c : swPort.entrySet()){
-    			OFPort p = c.getKey();
-    			System.out.println("Port : " + p + "\n");
-    			System.out.println("Bandwidth : " + c.getValue() + "\n");
-    		}
-    	}
+
+	@Override
+	public void initial() {
+		// TODO Auto-generated method stub
+		
 	}
+  
 }

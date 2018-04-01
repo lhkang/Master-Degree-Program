@@ -38,24 +38,20 @@ import net.floodlightcontroller.multipathrouting.type.MultiRoute;
 import net.floodlightcontroller.routing.Path;
 import net.floodlightcontroller.routing.PathId;
 import net.floodlightcontroller.staticentry.IStaticEntryPusherService;
+import net.floodlightcontroller.statistics.IStatisticsService;
 import net.floodlightcontroller.statistics.SwitchPortBandwidth;
 import net.floodlightcontroller.threadpool.IThreadPoolService;
 import net.floodlightcontroller.topology.ITopologyService;
 
-/*Github testing*/
-
 public class ComputeDecision implements IFloodlightModule, IComputeDecisionService {
 	protected IMultiPathRoutingService multipath;
-	
-    private Map<DatapathId,Map<OFPort,Long>> BandwidthMap;
-    private Map<DatapathId, HashMap<Integer, ArrayList>> Queue;
+	protected static IStatisticsService statisticsService;
     
     protected static IFloodlightProviderService floodlightProviderService;
     protected static IMonitorBandwidthService monitorbandwidth;
-    private static GetQueueStatus getqueuestatus;
 	
     private static IThreadPoolService threadPoolService;
-	private static ScheduledFuture<?> portBandwidthCollector;//
+	private static ScheduledFuture<?> portBandwidthCollector;
     private static final int Interval = 15;
     
     private int portCollectorSize = 0;
@@ -100,6 +96,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		        l.add(IMonitorBandwidthService.class);
 		        l.add(IGetQueueStatusService.class);
 		        l.add(IThreadPoolService.class);
+		        l.add(IStatisticsService.class);
 		return l;
 	}
 
@@ -107,9 +104,10 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	public void init(FloodlightModuleContext context) throws FloodlightModuleException {
 		this.floodlightProviderService = context.getServiceImpl(IFloodlightProviderService.class);
 		this.monitorbandwidth = context.getServiceImpl(IMonitorBandwidthService.class);
-		this.getqueuestatus = (GetQueueStatus)context.getServiceImpl(IGetQueueStatusService.class);
 		this.multipath = context.getServiceImpl(IMultiPathRoutingService.class);
 		this.threadPoolService = context.getServiceImpl(IThreadPoolService.class);
+		this.statisticsService = context.getServiceImpl(IStatisticsService.class);
+		
 		flowcache = CacheBuilder.newBuilder().concurrencyLevel(4)
                 .maximumSize(1000L)
                 .build(
@@ -125,8 +123,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		// TODO Auto-generated method stub
 		startCollectBandwidth();
 	}
-	
-	
+
 	private synchronized void startCollectBandwidth(){
 		portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new StartPortThred(), Interval, Interval, TimeUnit.SECONDS);
 	}
@@ -134,12 +131,8 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     protected class StartPortThred extends Thread{
     	public void run(){
     		portCollectorSize = 0;
-    		BandwidthMap = new HashMap<DatapathId,Map<OFPort,Long>>();
-    		BandwidthMap.clear();
-    		BandwidthMap =  ((MonitorBandwidth) monitorbandwidth).collectBandwidth();
-    		portCollectorSize = monitorbandwidth.getBandwidthMap().size();
-	        System.out.println("Networks Size:"+ portCollectorSize +"\n");
-	        
+    		portCollectorSize = statisticsService.getBandwidthSzie();
+    		System.out.println("Networks Size:"+ portCollectorSize +"\n");
     	}
     }
     
@@ -160,7 +153,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	        }	
         }
 
-        /* if result is congestion re-search database */
+        /* if congestion re-search database */
            if( portCollectorSize != 0 && isCongestion(result) ){
 	            //System.out.println("Network congestion! ");
 	            System.out.println("Re-routing! ");
@@ -175,8 +168,6 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    			//e.printStackTrace();
 	    		}
            }
-        
-        
         //add load balance module ! 
         
         if (result == null && srcDpid.equals(dstDpid)) return null;
@@ -199,10 +190,10 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		    		dstPort);
         }catch (Exception e){}
 
-        return sortMultipath(routes);
+        return sortPaths(routes);
     }
     
-    public MultiRoute sortMultipath(MultiRoute multipath){
+    public MultiRoute sortPaths(MultiRoute multipath){
     	
     	ArrayList<FlowCost> pathList = new ArrayList<FlowCost>();
     	int pathSize = multipath.getRouteSize();
@@ -214,30 +205,28 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
             return null;
     	}else{
 	    	for(int i = 0; i < pathSize; i++){
-	    		List<NodePortTuple> switchPortList = multipath.getRoute(i).getPath();
+	    		List<NodePortTuple> switchList = multipath.getRoute(i).getPath();
 	    		Integer max = 0;
 	    		
 	    		if(portCollectorSize != 0)
-	    		for (int indx = switchPortList.size() - 1; indx > 0; indx -= 2) {
+	    		for (int indx = switchList.size() - 1; indx > 0; indx -= 2) {
 	    			//System.out.println("path " + i + ":" + switchPortList.get(indx).toString());
-	    			Integer Bandwidth;
+	    			Long Bandwidth;
 	    			try{
-	    				if(BandwidthMap.containsValue(switchPortList.get(indx).getNodeId())){
+	    				if(statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId())!= null){
 	    					//get this switch port status from this Map
-	    					Map<OFPort,Long> portList = BandwidthMap.get(switchPortList.get(indx).getNodeId());
-		                    Bandwidth = portList.get(switchPortList.get(indx).getPortId()).intValue();
-			                if(max <= Bandwidth){
-			                	max = Bandwidth;
+	    					SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId());
+		                    Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
+			                if(max <= Bandwidth.intValue()){
+			                	max = Bandwidth.intValue();
 			                }
 	    				}else{
-	    					//Bandwidth = Integer.MAX_VALUE;//do well for example do't use this path
-	    					//flag = false;
+	    					max = Integer.MAX_VALUE; //Low priority path
 	    				}
-	    				
 	                }catch(Exception ex){}
 	    		}
-	    			FlowCost Cost = new FlowCost(multipath.getRoute(i),max); //10000-max
-	    			pathList.add(Cost);
+	    	FlowCost Cost = new FlowCost(multipath.getRoute(i),max); //available bandwidth = link capacity - link consume bandwidth
+	    	pathList.add(Cost);
 	    	}
 	    	Collections.sort(pathList);
 	    	return findDisjointPath(pathList, pathSize);
@@ -265,6 +254,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     		}
     	}
     	
+    	//Use LinkedHashSet can accelerate contains, but i'm lazy 
     	for (int index = 0; index < pathSize; index++){
     		if(!locationMap.contains(index)){
     			disjoint.addRoute(paths.get(index).getFlowCostPath());
@@ -278,13 +268,11 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	}
     	
     	/* print out all disjoint path and no one are congestion*/
-    	
-    	for(int l = 0 ; l < disjoint.getRouteSize(); l++){
-    		if(disjoint.getLocation().contains(l)) continue;
-    		System.out.println("disjoint path " + l + ":" + disjoint.getRoute(l).toString());
-    	}
-    	
     	//System.out.println("disjoint count :" + disjoint.getRouteSize());
+    	//for(int l = 0 ; l < disjoint.getRouteSize(); l++){
+    	//	if(disjoint.getLocation().contains(l)) continue;
+    	//	System.out.println("disjoint path " + l + ":" + disjoint.getRoute(l).toString());
+    	//}  	
     	return disjoint;
     }
     
@@ -304,7 +292,6 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     }
     
     public boolean isCongestion(MultiRoute paths){
-		
     	boolean iFlag = false;
     	//paths.initialtion(); 
     	
@@ -312,36 +299,28 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	for (int i = 0; i < paths.getRouteSize(); i++){
     		List<NodePortTuple> r = paths.getRoute(i).getPath();
 	    	for (int indx = r.size() - 1; indx > 0; indx -= 2) {
-	    		//if(BandwidthMap.containsValue(r.get(indx).getNodeId())){
-		    		Map<OFPort,Long> portList = BandwidthMap.get(r.get(indx).getNodeId());
-		            Integer Bandwidth = portList.get(r.get(indx).getPortId()).intValue();
-		            //System.out.println("Bandwidth:" + Bandwidth ); 
-		            if(Bandwidth >= 5000){
+	    		if(statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId())!= null) {
+	    			SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId());
+	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
+	    			//System.out.println("Bandwidth:" + Bandwidth ); 
+		            if(Bandwidth.intValue() >= 5000){
 		    			iFlag = true;
 		    			//paths.addlocation(i);
 		    			//break NestedLoop;
 		    		}
+	    		}else {
+	    			//ignore this situation
+	    		}
 	    	}
-    	}
     	//paths.CongestionFlag(iFlag);
+    	}
     	return iFlag;
     }
-    
-    public void PrintPortBandwidth(){
-    	for(Map.Entry<DatapathId, Map<OFPort,Long>> iter : BandwidthMap.entrySet()){
-      		System.out.println("Switch MacAddress : " + iter.getKey()+ "\n");
-      		Map<OFPort,Long> swPort = iter.getValue();
-      		
-      		for(Map.Entry<OFPort, Long> c : swPort.entrySet()){
-      			OFPort p = c.getKey();
-      			System.out.println("Port : " + p + "\n");
-      			System.out.println("Bandwidth : " + c.getValue() + "\n");
-      		}
-      	}
-    }
-    
-    public java.util.Map<DatapathId,Map<OFPort,Long>> collectBandwidth(){
-		return BandwidthMap;
+
+	@Override
+	public void resetcomputeDecision() {
+		// TODO Auto-generated method stub
+		flowcache.invalidateAll();
 	}
 
 }

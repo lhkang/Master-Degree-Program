@@ -12,4 +12,5 @@ import net.floodlightcontroller.statistics.SwitchPortBandwidth;
 
 public interface IMonitorBandwidthService extends IFloodlightService {
 	public Map<NodePortTuple, SwitchPortBandwidth> getBandwidthMap();
+	public void initial();
 }

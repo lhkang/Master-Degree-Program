@@ -67,7 +67,7 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 	 * 
 	 * @author Ryan Izard, ryan.izard@bigswitch.com, rizard@g.clemson.edu
 	 *
-	 */
+	 */    		
 	private class PortStatsCollector implements Runnable {
 
 		@Override
@@ -126,6 +126,20 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 					}
 				}
 			}
+			
+			/*
+			//System.out.println("Port status size : " + portStats.size());
+			
+			Iterator<Entry<NodePortTuple,SwitchPortBandwidth>> iter = portStats.entrySet().iterator();
+	        while (iter.hasNext()) {
+	            Entry<NodePortTuple,SwitchPortBandwidth> entry = iter.next();
+	            NodePortTuple tuple  = entry.getKey();
+	            SwitchPortBandwidth switchPortBand = entry.getValue();
+	            System.out.print(tuple.getNodeId()+","+tuple.getPortId().getPortNumber()+",");
+	            System.out.println(switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024));
+
+	        }
+	        */
 		}
 	}
 
@@ -226,19 +240,24 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 			startStatisticsCollection();
 		}
 	}
-
+	
 	/*
 	 * IStatisticsService implementation
 	 */
+	
+	public int getBandwidthSzie() {
+		return portStats.size();
+	}
 	
 	@Override
 	public SwitchPortBandwidth getBandwidthConsumption(DatapathId dpid, OFPort p) {
 		return portStats.get(new NodePortTuple(dpid, p));
 	}
 	
-
 	@Override
 	public Map<NodePortTuple, SwitchPortBandwidth> getBandwidthConsumption() {
+		/* network size current */
+		//System.out.println("tentativePortStats : " + tentativePortStats.size());
 		return Collections.unmodifiableMap(portStats);
 	}
 

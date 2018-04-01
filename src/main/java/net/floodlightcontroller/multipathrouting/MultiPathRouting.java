@@ -30,6 +30,7 @@ import net.floodlightcontroller.topology.ITopologyService;
 import net.floodlightcontroller.core.types.NodePortTuple;
 import net.floodlightcontroller.routing.Path;
 import net.floodlightcontroller.routing.PathId;
+import net.floodlightcontroller.test.IComputeDecisionService;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.restserver.IRestApiService;
 import org.projectfloodlight.openflow.types.DatapathId;
@@ -42,6 +43,7 @@ import com.google.common.cache.LoadingCache;
 import java.util.Collection;
 
 public class MultiPathRouting implements IFloodlightModule, ITopologyListener, IMultiPathRoutingService {
+	protected IComputeDecisionService computeDecision;
 	
 	protected static Logger logger;
     protected IFloodlightProviderService floodlightProvider;
@@ -106,6 +108,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     public void clearRoutingCache(){
         flowcache.invalidateAll();
         pathcache.invalidateAll();
+        computeDecision.resetcomputeDecision();
     }
 	
     public void removeLink(LinkWithCost link){
@@ -235,8 +238,6 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
         	
         	//Link can sorting by node connect 
         	for(LinkWithCost link: visitOrder(links.get(node.getDpid()), seen)){
-        	//Original
-        	//for(LinkWithCost link: links.get(node.getDpid())){
         		DatapathId node_n = link.getDstDpid();
         		Integer totalCost = cost + link.getCost();
         		if(seen.contains(node_n))
@@ -262,7 +263,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
         */
         LinkedList<NodePortTuple> switchPorts = new LinkedList<NodePortTuple>();
         pathCount = 0;
-        Integer hop = 1;
+        Integer hop = 0;
         
         generateMultiPath(routes,srcDpid,dstDpid,dstDpid,previous,switchPorts,costs,hop);
         return routes;
@@ -274,7 +275,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     	
     	//if (pathCount >=ROUTE_LIMITATION)
         //    return ; 
-        if( current.equals(srcDpid)){
+        if( current.equals(srcDpid) && hop <= costs.get(current) + (Density) ){
             pathCount++;
             Path result = new Path(new PathId(srcDpid,dstDpid), new LinkedList<NodePortTuple>(switchPorts));
             routes.addRoute(result);
@@ -287,6 +288,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
         	//System.out.println(link.getDstDpid() + " " + link.getSrcDpid());
         	//System.out.println("count :" + count + " threshold " + (costs.get(link.getSrcDpid()) + (Density)) + "\n");
         	if( count > (costs.get(link.getSrcDpid()) + (Density)) ) continue;
+        	
         	NodePortTuple npt = new NodePortTuple(link.getDstDpid(), link.getDstPort());
 	        NodePortTuple npt2 = new NodePortTuple(link.getSrcDpid(), link.getSrcPort());
 	        switchPorts.addFirst(npt);
@@ -331,6 +333,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
 				new ArrayList<Class<? extends IFloodlightService>>();
 		        l.add(IFloodlightProviderService.class);
 		        l.add(ITopologyService.class);
+		        l.add(IComputeDecisionService.class);
 		        //l.add(IRestApiService.class);
 		return l;
 	}
@@ -341,6 +344,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
         topologyService    = context.getServiceImpl(ITopologyService.class);
         restApi = context.getServiceImpl(IRestApiService.class);
         logger = LoggerFactory.getLogger(MultiPathRouting.class);
+        computeDecision = context.getServiceImpl(IComputeDecisionService.class);
         dpidLinks = new HashMap<DatapathId, HashSet<LinkWithCost>>();
 
         flowcache = CacheBuilder.newBuilder().concurrencyLevel(4)

@@ -512,7 +512,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		    //paths = multipath.getRoute(srcSw, 
 		    //		srcPort, 
 		    //		dstAp.getNodeId(), 
-		    //  		dstAp.getPortId());
+		    //  	dstAp.getPortId());
 		    
 	    	
 	    	paths = computeDecision.Route(srcSw, 
@@ -544,7 +544,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		    
 		    /*route = paths.getsequenceRoute();*/
 		    
-		    //route = computeDecision.sortMultipath(multirouting).getRoute(0);
+		    //route = computeDecision.sortPaths(multirouting).getRoute(0);
 	    }
 	    
 	    route = createPath(route,srcSw, 
