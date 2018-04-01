@@ -509,24 +509,15 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
 	   
 	    try{
-		    //paths = multipath.getRoute(srcSw, 
-		    //		srcPort, 
-		    //		dstAp.getNodeId(), 
-		    //  	dstAp.getPortId());
-		    
 	    	
 	    	paths = computeDecision.Route(srcSw, 
 		    		srcPort, 
 		    		dstAp.getNodeId(), 
 		      		dstAp.getPortId());
 	    	
-	    	//paths = computeDecision.FlowRoute(id);
-	    	
 	    }catch(Exception e){
 	        //log.info("error: " + e.toString());
 	    }
-	    
-	    //for ---
 	    
 	    if( null == paths){
 	        route =  null;
@@ -541,9 +532,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    	routeCount = (routeCount+1) % paths.getRouteSize();
 	    	route = paths.getRoute(routeCount);
 	    	//route = paths.getRoute(0);
-		    
 		    /*route = paths.getsequenceRoute();*/
-		    
 		    //route = computeDecision.sortPaths(multirouting).getRoute(0);
 	    }
 	    
@@ -553,7 +542,6 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		        	dstAp.getPortId());
 	     
 	    //System.out.println("src = " + srcSw + "dst = " + dstAp.getNodeId() + "Forwarding path: " + route.toString());
-	    //computeDecision.PrintPortBandwidth(); //computeDecision can be use
 	    
 	    Match m = createMatchFromPacket(sw, srcPort, pi, cntx);
 	    

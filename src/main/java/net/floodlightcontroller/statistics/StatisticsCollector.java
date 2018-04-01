@@ -9,9 +9,15 @@ import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.core.types.NodePortTuple;
+import net.floodlightcontroller.linkdiscovery.ILinkDiscovery;
+import net.floodlightcontroller.linkdiscovery.ILinkDiscovery.LDUpdate;
+import net.floodlightcontroller.multipathrouting.type.LinkWithCost;
 import net.floodlightcontroller.restserver.IRestApiService;
 import net.floodlightcontroller.statistics.web.SwitchStatisticsWebRoutable;
 import net.floodlightcontroller.threadpool.IThreadPoolService;
+import net.floodlightcontroller.topology.ITopologyListener;
+import net.floodlightcontroller.topology.ITopologyService;
+
 import org.projectfloodlight.openflow.protocol.*;
 import org.projectfloodlight.openflow.protocol.match.Match;
 import org.projectfloodlight.openflow.protocol.ver13.OFMeterSerializerVer13;
@@ -28,13 +34,14 @@ import java.util.Map.Entry;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class StatisticsCollector implements IFloodlightModule, IStatisticsService {
+public class StatisticsCollector implements IFloodlightModule, ITopologyListener, IStatisticsService {
 	private static final Logger log = LoggerFactory.getLogger(StatisticsCollector.class);
 
 	private static IOFSwitchService switchService;
 	private static IThreadPoolService threadPoolService;
 	private static IRestApiService restApiService;
-
+	protected ITopologyService topologyService;
+	
 	private static boolean isEnabled = false;
 	
 	private static int portStatsInterval = 10; /* could be set by REST API, so not final */
@@ -127,7 +134,7 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 				}
 			}
 			
-			/*
+			
 			//System.out.println("Port status size : " + portStats.size());
 			
 			Iterator<Entry<NodePortTuple,SwitchPortBandwidth>> iter = portStats.entrySet().iterator();
@@ -135,11 +142,11 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 	            Entry<NodePortTuple,SwitchPortBandwidth> entry = iter.next();
 	            NodePortTuple tuple  = entry.getKey();
 	            SwitchPortBandwidth switchPortBand = entry.getValue();
-	            System.out.print(tuple.getNodeId()+","+tuple.getPortId().getPortNumber()+",");
+	            System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");//tuple.getPortId().getPortNumber(
 	            System.out.println(switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024));
 
 	        }
-	        */
+	        
 		}
 	}
 
@@ -202,6 +209,7 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 		l.add(IOFSwitchService.class);
 		l.add(IThreadPoolService.class);
 		l.add(IRestApiService.class);
+		l.add(ITopologyService.class);
 		return l;
 	}
 
@@ -211,7 +219,8 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 		switchService = context.getServiceImpl(IOFSwitchService.class);
 		threadPoolService = context.getServiceImpl(IThreadPoolService.class);
 		restApiService = context.getServiceImpl(IRestApiService.class);
-
+		topologyService    = context.getServiceImpl(ITopologyService.class);
+		
 		Map<String, String> config = context.getConfigParams(this);
 		if (config.containsKey(ENABLED_STR)) {
 			try {
@@ -236,6 +245,7 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 	public void startUp(FloodlightModuleContext context)
 			throws FloodlightModuleException {
 		restApiService.addRestletRoutable(new SwitchStatisticsWebRoutable());
+		topologyService.addListener(this);
 		if (isEnabled) {
 			startStatisticsCollection();
 		}
@@ -476,4 +486,35 @@ public class StatisticsCollector implements IFloodlightModule, IStatisticsServic
 		}
 		return values;
 	}
+	
+	/**
+	 * when topology Change 
+	 */
+	
+	@Override
+	public void topologyChanged(List<LDUpdate> linkUpdates) {
+		// TODO Auto-generated method stub
+		for (LDUpdate update : linkUpdates){
+	        if (update.getOperation().equals(ILinkDiscovery.UpdateOperation.LINK_REMOVED)){
+		        removeLink(new NodePortTuple(update.getSrc(),update.getSrcPort()));
+		        removeLink(new NodePortTuple(update.getDst(),update.getDstPort()));
+	        }
+	        if(update.getOperation().equals(ILinkDiscovery.UpdateOperation.PORT_DOWN)) {
+	        	removeLink(new NodePortTuple(update.getSrc(),update.getSrcPort()));
+	        }
+	        if(update.getOperation().equals(ILinkDiscovery.UpdateOperation.SWITCH_REMOVED)) {
+	        	removeLink(new NodePortTuple(update.getSrc(),OFPort.LOCAL));
+	        }
+		}
+	}
+	
+	public void removeLink(NodePortTuple key){
+        if(portStats.containsKey(key)){
+        	portStats.remove(key);
+        }
+        if(tentativePortStats.containsKey(key)){
+        	tentativePortStats.remove(key);
+        }
+    }
+	
 }
