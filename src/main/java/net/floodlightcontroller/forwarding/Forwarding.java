@@ -137,7 +137,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
     private static final long FLOWSET_MASK = ((1L << FLOWSET_BITS) - 1) << FLOWSET_SHIFT;
     private static final long FLOWSET_MAX = (long) (Math.pow(2, FLOWSET_BITS) - 1);
     protected static FlowSetIdRegistry flowSetIdRegistry;
-    Integer routeCount = 0;
+    protected static Integer routeCount = 0;
     
     protected static class FlowSetIdRegistry {
         private volatile Map<NodePortTuple, Set<U64>> nptToFlowSetIds;
@@ -947,7 +947,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
         super.startUp();
         switchService.addOFSwitchListener(this);
         routingEngineService.addRoutingDecisionChangedListener(this);
-
+        
         /* Register only if we want to remove stale flows */
         if (REMOVE_FLOWS_ON_LINK_OR_PORT_DOWN) {
             linkService.addListener(this);

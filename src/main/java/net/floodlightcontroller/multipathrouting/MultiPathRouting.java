@@ -51,8 +51,8 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     protected IRestApiService restApi;
     protected final int ROUTE_LIMITATION = 10;
     protected HashMap<DatapathId, HashSet<LinkWithCost>> dpidLinks;
-    protected int pathCount = 0;
-    protected double Density = 0;
+    protected static int pathCount = 0;
+    protected static double Density = 0;
     
     protected class FlowCacheLoader extends CacheLoader<FlowId,MultiRoute> {
         MultiPathRouting mpr;

@@ -54,7 +54,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	private static ScheduledFuture<?> portBandwidthCollector;
     private static final int Interval = 15;
     
-    private int portCollectorSize = 0;
+    private static int portCollectorSize = 0;
     
     protected class FlowCacheLoader extends CacheLoader<FlowId,MultiRoute> {
     	ComputeDecision mpr;
@@ -153,7 +153,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	        }	
         }
 
-        /* if congestion re-search database */
+        /* if congestion re-search database and have been get port status */
            if( portCollectorSize != 0 && isCongestion(result) ){
 	            //System.out.println("Network congestion! ");
 	            System.out.println("Re-routing! ");
@@ -259,6 +259,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     		if(!locationMap.contains(index)){
     			disjoint.addRoute(paths.get(index).getFlowCostPath());
     			//record disjoint congestion path, in order to avoid use congestion path
+    			//get link capacity * 0.7 to instead of 7000
     			if(paths.get(index).getCost() >= 7000){
     				disjoint.CongestionFlag(true);
     				disjoint.addlocation(index);
