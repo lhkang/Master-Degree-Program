@@ -530,10 +530,12 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 		    }
 	    	*/
 	    	routeCount = (routeCount+1) % paths.getRouteSize();
-	    	route = paths.getRoute(routeCount);
-	    	//route = paths.getRoute(0);
-		    /*route = paths.getsequenceRoute();*/
-		    //route = computeDecision.sortPaths(multirouting).getRoute(0);
+	    	route = paths.getRoute(routeCount);//multiple paths
+	    	
+	    	//route = paths.getRoute(0);//single path
+	    	
+		    /*route = paths.getsequenceRoute();*/ //other method to forwarding multiple paths
+		    //route = computeDecision.sortPaths(multirouting).getRoute(0); //get single path without congestion detection
 	    }
 	    
 	    route = createPath(route,srcSw, 

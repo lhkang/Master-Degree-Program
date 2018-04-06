@@ -52,7 +52,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	
     private static IThreadPoolService threadPoolService;
 	private static ScheduledFuture<?> portBandwidthCollector;
-    private static final int Interval = 15;
+    private static final int Interval = 12;
     
     private static int portCollectorSize = 0;
     
@@ -153,12 +153,13 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	        }	
         }
 
-        /* if congestion re-search database and have been get port status */
+        
+        // if congestion re-search database and have been get port status 
            if( portCollectorSize != 0 && isCongestion(result) ){
 	            //System.out.println("Network congestion! ");
 	            System.out.println("Re-routing! ");
 	            
-	            /* Delete this flow from paths database  */
+	            // Delete this flow from paths database  
 	            flowcache.invalidate(id);
 	            	
 	            try {
@@ -169,7 +170,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    		}
            }
         //add load balance module ! 
-        
+
         if (result == null && srcDpid.equals(dstDpid)) return null;
         return result;
 	}
@@ -259,7 +260,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     		if(!locationMap.contains(index)){
     			disjoint.addRoute(paths.get(index).getFlowCostPath());
     			//record disjoint congestion path, in order to avoid use congestion path
-    			//get link capacity * 0.7 to instead of 7000
+    			//get link capacity * 0.7 to instead of 8000
     			if(paths.get(index).getCost() >= 7000){
     				disjoint.CongestionFlag(true);
     				disjoint.addlocation(index);
@@ -304,7 +305,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    			SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId());
 	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
 	    			//System.out.println("Bandwidth:" + Bandwidth ); 
-		            if(Bandwidth.intValue() >= 5000){
+		            if(Bandwidth.intValue() >= 7000){
 		    			iFlag = true;
 		    			//paths.addlocation(i);
 		    			//break NestedLoop;

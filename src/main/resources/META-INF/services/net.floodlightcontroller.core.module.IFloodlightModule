@@ -33,3 +33,4 @@ net.floodlightcontroller.multipathrouting.MultiPathRouting
 net.floodlightcontroller.test.ComputeDecision
 net.floodlightcontroller.GetBandwidthNodule.MonitorBandwidth
 net.floodlightcontroller.GetQueueStatus.GetQueueStatus
+net.floodlightcontroller.IMonitorPkLossService.MonitorPkLoss

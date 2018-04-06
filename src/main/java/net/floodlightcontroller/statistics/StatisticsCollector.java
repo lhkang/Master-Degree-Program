@@ -27,6 +27,7 @@ import org.projectfloodlight.openflow.types.U64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -58,6 +59,8 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 	private static final HashMap<NodePortTuple, SwitchPortBandwidth> portStats = new HashMap<NodePortTuple, SwitchPortBandwidth>(); // final??
 	private static final HashMap<NodePortTuple, SwitchPortBandwidth> tentativePortStats = new HashMap<NodePortTuple, SwitchPortBandwidth>();
 
+	private static Integer intervalCount = 0;
+	
 	/**
 	 * Run periodically to collect all port statistics. This only collects
 	 * bandwidth stats right now, but it could be expanded to record other
@@ -98,7 +101,6 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 								log.error("Inconsistent state between tentative and official port stats lists.");
 								return;
 							}
-
 							/* Get counted bytes over the elapsed period. Check for counter overflow. */
 							U64 rxBytesCounted;
 							U64 txBytesCounted;
@@ -135,40 +137,31 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 					}
 				}
 			}
+			/*
+			System.out.println("Port status size : " + portStats.size());
 			
-			//System.out.println("Port status size : " + portStats.size());
-			
-			File file = new File("/home/floodlight/Desktop/Experiment_data/member.txt");
+			File file = new File("/home/floodlight/Desktop/Experiment_data/member9.txt");
 		    FileWriter writer = null;
+			
 		    try {
-		        writer = new FileWriter(file);
+		        writer = new FileWriter(file, true);
 		        Iterator<Entry<NodePortTuple,SwitchPortBandwidth>> iter = portStats.entrySet().iterator();
+		        writer.write("Timestamp:" + intervalCount +  "\n\n");
 		        while (iter.hasNext()) {
 		            Entry<NodePortTuple,SwitchPortBandwidth> entry = iter.next();
 		            NodePortTuple tuple  = entry.getKey();
 		            SwitchPortBandwidth switchPortBand = entry.getValue();
-		            writer.write(" " + "\n");
 		            writer.write(tuple.getNodeId()+","+tuple.getPortId()+",");		            
 		            int data = (int) (switchPortBand.getBitsPerSecondRx().getValue()/(8*1024)) + (int)switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
-		            writer.write(data+"\n");
+		            writer.write(data + "\n");
 		        }
 		    } catch (IOException e) {
 		        e.printStackTrace(); // I'd rather declare method with throws IOException and omit this catch.
 		    } finally {
 		        if (writer != null) try { writer.close(); } catch (IOException ignore) {}
 		    }
-		    //System.out.printf("File is located at %s%n", file.getAbsolutePath());
-			/*
-			Iterator<Entry<NodePortTuple,SwitchPortBandwidth>> iter = portStats.entrySet().iterator();
-	        while (iter.hasNext()) {
-	            Entry<NodePortTuple,SwitchPortBandwidth> entry = iter.next();
-	            NodePortTuple tuple  = entry.getKey();
-	            SwitchPortBandwidth switchPortBand = entry.getValue();
-	            System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");
-	            System.out.println(switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024));
-
-	        }
-	        */
+		    intervalCount += portStatsInterval;
+		    */
 		}
 	}
 
