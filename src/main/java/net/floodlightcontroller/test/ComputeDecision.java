@@ -137,8 +137,13 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     }
     
     /* For Forwarding module */
-    public MultiRoute Route(DatapathId srcDpid, OFPort srcPort, DatapathId dstDpid, OFPort dstPort) {
-
+    public MultiRoute Route(FlowId fid) {
+    	
+    	DatapathId srcDpid = fid.getSrc();
+        DatapathId dstDpid = fid.getDst();
+        OFPort srcPort = fid.getSrcPort();
+        OFPort dstPort = fid.getDstPort();
+        
         if (srcDpid.equals(dstDpid) && srcPort.equals(dstPort))
             return null;
 
@@ -217,7 +222,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    				if(statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId())!= null){
 	    					//get this switch port status from this Map
 	    					SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId());
-		                    Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
+		                    Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(1024*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(1024*1024);
 			                if(max <= Bandwidth.intValue()){
 			                	max = Bandwidth.intValue();
 			                }
@@ -260,8 +265,8 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     		if(!locationMap.contains(index)){
     			disjoint.addRoute(paths.get(index).getFlowCostPath());
     			//record disjoint congestion path, in order to avoid use congestion path
-    			//get link capacity * 0.7 to instead of 8000
-    			if(paths.get(index).getCost() >= 7000){
+    			//get link capacity * 0.7 to instead of 70
+    			if(paths.get(index).getCost() >= 70){//70Mb/s
     				disjoint.CongestionFlag(true);
     				disjoint.addlocation(index);
     				//show paths
@@ -305,7 +310,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    			SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId());
 	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
 	    			//System.out.println("Bandwidth:" + Bandwidth ); 
-		            if(Bandwidth.intValue() >= 7000){
+		            if(Bandwidth.intValue() >= 70){
 		    			iFlag = true;
 		    			//paths.addlocation(i);
 		    			//break NestedLoop;

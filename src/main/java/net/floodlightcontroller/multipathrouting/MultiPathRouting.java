@@ -49,7 +49,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     protected IFloodlightProviderService floodlightProvider;
     protected ITopologyService topologyService;
     protected IRestApiService restApi;
-    protected final int ROUTE_LIMITATION = 10;
+    protected final int ROUTE_LIMITATION = 15;
     protected HashMap<DatapathId, HashSet<LinkWithCost>> dpidLinks;
     protected static int pathCount = 0;
     protected static double Density = 0;

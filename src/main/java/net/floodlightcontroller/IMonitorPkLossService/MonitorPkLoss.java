@@ -1,5 +1,8 @@
 package net.floodlightcontroller.IMonitorPkLossService;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +45,6 @@ import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.statistics.IStatisticsService;
 import net.floodlightcontroller.statistics.StatisticsCollector;
-import net.floodlightcontroller.statistics.SwitchPortBandwidth;
 import net.floodlightcontroller.threadpool.IThreadPoolService;
 import net.floodlightcontroller.core.types.NodePortTuple;
 
@@ -353,7 +355,7 @@ public class MonitorPkLoss implements IMonitorPkLossService, IFloodlightModule, 
 //                      System.out.println("dpid:"+e.getKey().toString());
 //                      System.out.println("for (OFPortStatsEntry pse : psr.getEntries())");
 
-                        long pk_loss = 0;
+                        double pk_loss = 0;
 
                         if(e.getKey().toString().equals("") || e.getKey() == null){
 //                          System.out.println("e.getKey() is null....");
@@ -364,19 +366,42 @@ public class MonitorPkLoss implements IMonitorPkLossService, IFloodlightModule, 
 //                      System.out.println(pse.getRxDropped().getValue() + pse.getTxDropped().getValue());
 //                      System.out.println(pse.getRxBytes().getValue() + pse.getTxBytes().getValue());
                         /* if 'totalPacket' equal 0 then packet loss is infinite */
-                        Long totalPacket = pse.getRxBytes().getValue() + pse.getTxBytes().getValue();
+                        double totalPacket = (double)(pse.getRxBytes().getValue()) + (double)(pse.getTxBytes().getValue());
                         if(totalPacket != 0){
                         	/* Packet loss rate(封包遺失率) = (傳送封包總數 - 接收到的封包總數) / (傳送封包總數) */
-                            pk_loss = (pse.getRxDropped().getValue() + pse.getTxDropped().getValue())/(pse.getRxBytes().getValue() + pse.getTxBytes().getValue()) ;
+                            pk_loss = ((double)(pse.getRxDropped().getValue()) + (double)(pse.getTxDropped().getValue()))/totalPacket;
                         }else{
                             pk_loss = 0;
                         }
-
+                        
 //                      System.out.println("PK_LOSS:"+pk_loss+",dpid:"+e.getKey().toString());
-                        DPID_PK_LOSS.put(npt, pk_loss);
+                        DPID_PK_LOSS.put(npt, pse.getRxDropped().getValue() + pse.getTxDropped().getValue());
+                        //DPID_PK_LOSS.put(npt, (long)pk_loss);
                     }
                 }
             }
+            
+            File file = new File("/home/floodlight/Desktop/Experiment_data/packetLoss20.txt");
+		    FileWriter writer = null;
+		    try {
+		        writer = new FileWriter(file, true);
+		        Iterator<Entry<NodePortTuple,Long>> iter = DPID_PK_LOSS.entrySet().iterator();
+	            while (iter.hasNext()) {
+	                Entry<NodePortTuple,Long> entry = iter.next();
+	                NodePortTuple tuple  = entry.getKey();
+	                Long lossRate = entry.getValue();
+	                writer.write(tuple.getNodeId()+","+tuple.getPortId()+",");
+	                writer.write(lossRate.toString() + "\n");
+	                //System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");
+	                //System.out.println(lossRate);
+	            }
+		    } catch (IOException ex) {
+		        ex.printStackTrace(); // I'd rather declare method with throws IOException and omit this catch.
+		    } finally {
+		        if (writer != null) try { writer.close(); } catch (IOException ignore) {}
+		    }
+		    
+/*
             Iterator<Entry<NodePortTuple,Long>> iter = DPID_PK_LOSS.entrySet().iterator();
             while (iter.hasNext()) {
                 Entry<NodePortTuple,Long> entry = iter.next();
@@ -385,6 +410,7 @@ public class MonitorPkLoss implements IMonitorPkLossService, IFloodlightModule, 
                 System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");
                 System.out.println(lossRate);
             }
+*/
         }
     }
 }

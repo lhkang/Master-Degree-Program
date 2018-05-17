@@ -425,7 +425,6 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
         DatapathId srcSw = sw.getId();
         IDevice dstDevice = IDeviceService.fcStore.get(cntx, IDeviceService.CONTEXT_DST_DEVICE);
         IDevice srcDevice = IDeviceService.fcStore.get(cntx, IDeviceService.CONTEXT_SRC_DEVICE);
-        Random ran = new Random();
         
         if (dstDevice == null) {
             log.debug("Destination device unknown. Flooding packet");
@@ -496,7 +495,8 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 
 	    Path route = null;
 	    MultiRoute paths = null;
-	        
+	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
+	    
 	    /*
 	    Path path = routingEngineService.getPath(srcSw, 
 	            srcPort,
@@ -505,36 +505,31 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	        
 	    System.out.println("Forwarding path: " + path);
 	    */
-	    
-	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
-	   
+
 	    try{
+
+	    	paths = computeDecision.Route(id);
 	    	
-	    	paths = computeDecision.Route(srcSw, 
-		    		srcPort, 
-		    		dstAp.getNodeId(), 
-		      		dstAp.getPortId());
-	    	
-	    }catch(Exception e){
-	        //log.info("error: " + e.toString());
+	    }catch(Exception ex){
+	        //log.info("error: " + ex.toString());
 	    }
+	    
+/*
+    	// show all multiple path 
+	    for(int i = 0; i < paths.getRouteSize();i++){
+	    	Path routing = paths.getRoute(i);
+	    	System.out.println("path :" + i +":" + routing.toString());
+	    }
+*/
 	    
 	    if( null == paths){
 	        route =  null;
 	    }else{
-	    	/*
-	    	// show all multiple path 
-		    for(int i = 0; i < multirouting.getRouteSize();i++){
-		    	Path routing = multirouting.getRoute(i);
-		    	System.out.println("path :" + i +":" + routing.toString());
-		    }
-	    	*/
 	    	routeCount = (routeCount+1) % paths.getRouteSize();
 	    	route = paths.getRoute(routeCount);//multiple paths
 	    	
 	    	//route = paths.getRoute(0);//single path
-	    	
-		    /*route = paths.getsequenceRoute();*/ //other method to forwarding multiple paths
+		    /*route = paths.getsequenceRoute();*/ //other method to assign multiple paths
 		    //route = computeDecision.sortPaths(multirouting).getRoute(0); //get single path without congestion detection
 	    }
 	    
