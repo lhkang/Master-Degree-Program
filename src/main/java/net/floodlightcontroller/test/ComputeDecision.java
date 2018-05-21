@@ -34,6 +34,7 @@ import net.floodlightcontroller.core.types.NodePortTuple;
 import net.floodlightcontroller.multipathrouting.IMultiPathRoutingService;
 import net.floodlightcontroller.multipathrouting.MultiPathRouting;
 import net.floodlightcontroller.multipathrouting.type.FlowId;
+import net.floodlightcontroller.multipathrouting.type.LinkWithCost;
 import net.floodlightcontroller.multipathrouting.type.MultiRoute;
 import net.floodlightcontroller.routing.Path;
 import net.floodlightcontroller.routing.PathId;
@@ -51,8 +52,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     protected static IMonitorBandwidthService monitorbandwidth;
 	
     private static IThreadPoolService threadPoolService;
-	private static ScheduledFuture<?> portBandwidthCollector;
-    private static final int Interval = 12;
+	private static final int Interval = 12;
     
     private static int portCollectorSize = 0;
     
@@ -125,7 +125,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	}
 
 	private synchronized void startCollectBandwidth(){
-		portBandwidthCollector = threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new StartPortThred(), Interval, Interval, TimeUnit.SECONDS);
+		threadPoolService.getScheduledExecutor().scheduleAtFixedRate(new StartPortThred(), Interval, Interval, TimeUnit.SECONDS);
 	}
 	
     protected class StartPortThred extends Thread{
@@ -136,16 +136,14 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	}
     }
     
-    /* For Forwarding module */
-    public MultiRoute Route(FlowId fid) {
+    /* Return multipaths to Forwarding module */
+    public MultiRoute Re_routing_Cross_Layer(FlowId fid) {
     	
     	DatapathId srcDpid = fid.getSrc();
         DatapathId dstDpid = fid.getDst();
         OFPort srcPort = fid.getSrcPort();
         OFPort dstPort = fid.getDstPort();
         
-        if (srcDpid.equals(dstDpid) && srcPort.equals(dstPort))
-            return null;
 
         FlowId id = new FlowId(srcDpid,srcPort,dstDpid,dstPort);
         MultiRoute result = null;
@@ -157,26 +155,32 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	            //logger.error("error {}",e.toString());
 	        }	
         }
-
         
-        // if congestion re-search database and have been get port status 
-           if( portCollectorSize != 0 && isCongestion(result) ){
-	            //System.out.println("Network congestion! ");
-	            System.out.println("Re-routing! ");
-	            
-	            // Delete this flow from paths database  
-	            flowcache.invalidate(id);
-	            	
-	            try {
-	    			result = flowcache.get(id);
-	    		} catch (ExecutionException e) {
-	    			// TODO Auto-generated catch block
-	    			//e.printStackTrace();
-	    		}
-           }
-        //add load balance module ! 
-
-        if (result == null && srcDpid.equals(dstDpid)) return null;
+        if (result == null && srcDpid.equals(dstDpid)) 
+        	return null;
+        
+         //We ignoring the situation if controller does not get the port status
+        if(portCollectorSize != 0) {
+        	// if occur congestion that re-routing 
+	        if( Congestion_Detection(result) ){
+		        //System.out.println("Network congestion! ");
+		        System.out.println("Re-routing! ");
+		        // Delete this path from multipath cache  
+		        flowcache.invalidate(id);
+		        try {
+		        	MultiRoute route = flowcache.get(id);
+		        	for(int i = 0 ; i < result.getRouteSize(); i++){
+			    		if(result.getLocation().contains(i)) continue;
+			    		result.addRoute(route.getRoute(i));
+			    	}
+				} catch (ExecutionException e) {
+					//e.printStackTrace();
+				}
+	        }else {
+	        	//No one path congestion and load balance 
+	        	result = transform_Type(sorting_by_bandwidth(result),null);
+	        }
+        }
         return result;
 	}
     
@@ -196,113 +200,133 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		    		dstPort);
         }catch (Exception e){}
 
-        return sortPaths(routes);
+        return selection_Paths(routes);
     }
     
-    public MultiRoute sortPaths(MultiRoute multipath){
+    public MultiRoute selection_Paths(MultiRoute multipath){
     	
-    	ArrayList<FlowCost> pathList = new ArrayList<FlowCost>();
-    	int pathSize = multipath.getRouteSize();
-    	
-    	System.out.println("Start sort paths & Find disjoint paths");
+    	System.out.println("Sorting paths by bandwidth & Find disjoint multipath");
     	
     	//source to destination are same switch
-    	if( 0 == pathSize){
+    	if( 0 == multipath.getRouteSize()){
             return null;
     	}else{
-	    	for(int i = 0; i < pathSize; i++){
-	    		List<NodePortTuple> switchList = multipath.getRoute(i).getPath();
-	    		Integer max = 0;
-	    		
-	    		if(portCollectorSize != 0)
-	    		for (int indx = switchList.size() - 1; indx > 0; indx -= 2) {
-	    			//System.out.println("path " + i + ":" + switchPortList.get(indx).toString());
-	    			Long Bandwidth;
-	    			try{
-	    				if(statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId())!= null){
-	    					//get this switch port status from this Map
-	    					SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId());
-		                    Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(1024*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(1024*1024);
-			                if(max <= Bandwidth.intValue()){
-			                	max = Bandwidth.intValue();
-			                }
-	    				}else{
-	    					max = Integer.MAX_VALUE; //Low priority path
-	    				}
-	                }catch(Exception ex){}
-	    		}
-	    	FlowCost Cost = new FlowCost(multipath.getRoute(i),max); //available bandwidth = link capacity - link consume bandwidth
-	    	pathList.add(Cost);
-	    	}
-	    	Collections.sort(pathList);
-	    	return findDisjointPath(pathList, pathSize);
+	    	//return finding_Node_Disjoint_Path(sorting_by_bandwidth(multipath), 
+	    	//		multipath.getRouteSize());
+    		return finding_Link_Disjoint_Path(sorting_by_bandwidth(multipath), 
+	    			multipath.getRouteSize());
         }
     }
     
-    public MultiRoute findDisjointPath(ArrayList<FlowCost> paths,int pathSize){
-    	MultiRoute disjoint = new MultiRoute();
+    public ArrayList<FlowCost> sorting_by_bandwidth(MultiRoute pathSet){
+    	ArrayList<FlowCost> pathList = new ArrayList<FlowCost>();
+    	int pathSize = pathSet.getRouteSize();
+    	
+    	for(int i = 0; i < pathSize; i++){
+    		List<NodePortTuple> switchList = pathSet.getRoute(i).getPath();
+    		Integer max = 0;
+    		
+    		if(portCollectorSize != 0)//thread failed
+    		for (int indx = switchList.size() - 1; indx > 0; indx -= 2) {
+    			//System.out.println("path " + i + ":" + switchPortList.get(indx).toString());
+    			Long Bandwidth;
+    			try{
+    				if(statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId())!= null){
+    					//get this switch port status from this Map
+    					SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(switchList.get(indx).getNodeId(), switchList.get(indx).getPortId());
+	                    Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(1024*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(1024*1024);
+		                if(max <= Bandwidth.intValue()){
+		                	max = Bandwidth.intValue();
+		                }
+    				}else{
+    					max = Integer.MAX_VALUE; //Low priority path
+    				}
+                }catch(Exception ex){}
+    		}
+    	FlowCost Cost = new FlowCost(pathSet.getRoute(i),max); //available bandwidth = link capacity - link consume bandwidth
+    	pathList.add(Cost);
+    	}
+    	Collections.sort(pathList);
+    	return pathList;
+    }
+    
+    public MultiRoute finding_Node_Disjoint_Path(ArrayList<FlowCost> paths,int pathSize){
     	Set<Integer> locationMap = new HashSet<>();//store disjoint path location in "paths"
     	
-    	List<NodePortTuple> r1 = null;
-    	List<NodePortTuple> r2 = null;
+    	ArrayList<NodePortTuple> r1;
+    	ArrayList<NodePortTuple> r2;
     	
     	for (int i = 0; i < pathSize; i++){
     		if(locationMap.contains(i)) continue;
-    		r1 = paths.get(i).getFlowCostPath().getPath();
+    		r1 = new ArrayList<NodePortTuple>(paths.get(i).getFlowCostPath().getPath());
     		for (int j = i+1; j < pathSize; j++){
-    			r2 = paths.get(j).getFlowCostPath().getPath();
+    			r2 = new ArrayList<NodePortTuple>(paths.get(j).getFlowCostPath().getPath());
     			for (int indx = r2.size() - 1; indx > 0; indx -= 2) {
-    				if(isContains(r1,r2.get(indx))){
+    				if(r1.contains(r2.get(indx))){
     					locationMap.add(j);
     				}
     			}
     			//System.out.println("paths" + "\n" + r1.toString() + "\n" + r2.toString() + "\n" +  Flag);
     		}
     	}
+    	return transform_Type(paths, locationMap);
+    }
+    
+    public MultiRoute finding_Link_Disjoint_Path(ArrayList<FlowCost> paths,int pathSize){
+    	Set<Integer> locationMap = new HashSet<>();//store disjoint path location in "paths"
     	
-    	//Use LinkedHashSet can accelerate contains, but i'm lazy 
-    	for (int index = 0; index < pathSize; index++){
-    		if(!locationMap.contains(index)){
-    			disjoint.addRoute(paths.get(index).getFlowCostPath());
-    			//record disjoint congestion path, in order to avoid use congestion path
-    			//get link capacity * 0.7 to instead of 70
-    			if(paths.get(index).getCost() >= 70){//70Mb/s
-    				disjoint.CongestionFlag(true);
-    				disjoint.addlocation(index);
-    				//show paths
+    	ArrayList<NodePortTuple> r1;
+    	ArrayList<NodePortTuple> r2;
+    	
+    	for (int i = 0; i < pathSize; i++){
+    		if(locationMap.contains(i)) continue;
+    		r1 = new ArrayList<NodePortTuple>(paths.get(i).getFlowCostPath().getPath());
+    		HashSet<LinkWithCost> r1_Link = new HashSet<LinkWithCost>(build_Link(r1));
+    		for (int j = i+1; j < pathSize; j++){
+    			r2 = new ArrayList<NodePortTuple>(paths.get(j).getFlowCostPath().getPath());
+    			HashSet<LinkWithCost> r2_Link = new HashSet<LinkWithCost>(build_Link(r2));
+    			for(LinkWithCost L2 : r2_Link) {
+    				if(r1_Link.contains(L2)) {
+    					locationMap.add(j);
+    				}
     			}
     		}
     	}
-    	
-    	/* print out all disjoint path and no one are congestion*/
-    	//System.out.println("disjoint count :" + disjoint.getRouteSize());
-    	//for(int l = 0 ; l < disjoint.getRouteSize(); l++){
-    	//	if(disjoint.getLocation().contains(l)) continue;
-    	//	System.out.println("disjoint path " + l + ":" + disjoint.getRoute(l).toString());
-    	//}  	
-    	return disjoint;
+    	return transform_Type(paths, locationMap);
     }
     
-    boolean isContains(List<NodePortTuple> r1,NodePortTuple r2){
-		boolean result = false;
-		
-		for (int ntp = r1.size() - 1; ntp > 0; ntp -= 2) {
-			if((r1.get(ntp).getNodeId().equals(r2.getNodeId()))&&(r1.get(ntp).getPortId().equals(r2.getPortId())) ){
-				result = true;
-				break;
-			}
-			//System.out.println(r1.get(ntp).toString() + " " + r2.toString() + " " + result);
-			//result = false;
-		}
-		//System.out.println(result);
-    	return result;
+    private MultiRoute transform_Type(ArrayList<FlowCost> paths,Set<Integer> locationMap) {
+    	MultiRoute disjointPath = new MultiRoute();
+    	for (int index = 0; index < paths.size(); index++){
+    		if(locationMap != null) {
+	    		if(!locationMap.contains(index)){
+	    			disjointPath.addRoute(paths.get(index).getFlowCostPath());
+	    			//record disjoint congestion path, in order to avoid use congestion path
+	    			//It is the batter way that get link capacity * 0.8 to instead of fixed value
+	    			if(paths.get(index).getCost() >= 800){//800Mb/s
+	    				disjointPath.CongestionFlag(true);
+	    				disjointPath.addlocation(index);
+	    			}
+	    		}
+    		}else {
+    			disjointPath.addRoute(paths.get(index).getFlowCostPath());
+    		}
+    	}
+		return disjointPath;
     }
     
-    public boolean isCongestion(MultiRoute paths){
-    	boolean iFlag = false;
-    	//paths.initialtion(); 
+    private HashSet<LinkWithCost> build_Link(ArrayList<NodePortTuple> multipath){
+    	HashSet<LinkWithCost> Link = new HashSet<LinkWithCost>();
+    	for (int index = 0; index < multipath.size()-1; index += 2) {
+    		
+    		Link.add(new LinkWithCost(multipath.get(index).getNodeId(), multipath.get(index).getPortId(), 
+    				multipath.get(index+1).getNodeId(), multipath.get(index+1).getPortId(),1));
+    	}
+		return Link;
+    }
+    
+    private boolean Congestion_Detection(MultiRoute paths){
     	
-    	//NestedLoop:
     	for (int i = 0; i < paths.getRouteSize(); i++){
     		List<NodePortTuple> r = paths.getRoute(i).getPath();
 	    	for (int indx = r.size() - 1; indx > 0; indx -= 2) {
@@ -310,18 +334,15 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    			SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId());
 	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
 	    			//System.out.println("Bandwidth:" + Bandwidth ); 
-		            if(Bandwidth.intValue() >= 70){
-		    			iFlag = true;
-		    			//paths.addlocation(i);
-		    			//break NestedLoop;
+		            if(Bandwidth.intValue() >= 800){
+		            	return true;
 		    		}
 	    		}else {
 	    			//ignore this situation
 	    		}
 	    	}
-    	//paths.CongestionFlag(iFlag);
     	}
-    	return iFlag;
+    	return false;
     }
 
 	@Override

@@ -139,7 +139,7 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 			}
 			
 			//System.out.println("Port status size : " + portStats.size());
-			
+			/*
 			File file = new File("/home/floodlight/Desktop/Experiment_data/bandwidth20.txt");
 		    FileWriter writer = null;
 			
@@ -163,7 +163,7 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 		        if (writer != null) try { writer.close(); } catch (IOException ignore) {}
 		    }
 		    intervalCount += portStatsInterval;
-		    
+		    */
 		}
 	}
 

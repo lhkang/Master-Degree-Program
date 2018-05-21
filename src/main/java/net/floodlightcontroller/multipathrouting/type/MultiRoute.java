@@ -46,6 +46,7 @@ public class MultiRoute {
 	public void initialtion(){
 		location = new HashSet<Integer>();
 		Flag = false;
+		sequenceRoute = 0;
 	}
 	
 	public void CongestionFlag(boolean Flag){

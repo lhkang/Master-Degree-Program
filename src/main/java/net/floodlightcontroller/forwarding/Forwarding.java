@@ -498,6 +498,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
 	    
 	    /*
+	    //Dijkstra's algorithm
 	    Path path = routingEngineService.getPath(srcSw, 
 	            srcPort,
 	            dstAp.getNodeId(),
@@ -507,9 +508,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    */
 
 	    try{
-
-	    	paths = computeDecision.Route(id);
-	    	
+	    	paths = computeDecision.Re_routing_Cross_Layer(id);
 	    }catch(Exception ex){
 	        //log.info("error: " + ex.toString());
 	    }
@@ -525,12 +524,10 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    if( null == paths){
 	        route =  null;
 	    }else{
-	    	routeCount = (routeCount+1) % paths.getRouteSize();
-	    	route = paths.getRoute(routeCount);//multiple paths
-	    	
+	    	//routeCount = (routeCount+1) % paths.getRouteSize();
+	    	//route = paths.getRoute(routeCount);//multiple paths
 	    	//route = paths.getRoute(0);//single path
-		    /*route = paths.getsequenceRoute();*/ //other method to assign multiple paths
-		    //route = computeDecision.sortPaths(multirouting).getRoute(0); //get single path without congestion detection
+		    route = paths.getsequenceRoute(); //other method to assign multiple paths
 	    }
 	    
 	    route = createPath(route,srcSw, 

@@ -138,8 +138,8 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     public MultiRoute buildFlowRoute(FlowId fid){
         DatapathId srcDpid = fid.getSrc();
         DatapathId dstDpid = fid.getDst();
-        OFPort srcPort = fid.getSrcPort();
-        OFPort dstPort = fid.getDstPort();
+        //OFPort srcPort = fid.getSrcPort();
+        //OFPort dstPort = fid.getDstPort();
 
         MultiRoute routes = null;
         

@@ -380,7 +380,7 @@ public class MonitorPkLoss implements IMonitorPkLossService, IFloodlightModule, 
                     }
                 }
             }
-            
+            /*
             File file = new File("/home/floodlight/Desktop/Experiment_data/packetLoss20.txt");
 		    FileWriter writer = null;
 		    try {
@@ -400,7 +400,7 @@ public class MonitorPkLoss implements IMonitorPkLossService, IFloodlightModule, 
 		    } finally {
 		        if (writer != null) try { writer.close(); } catch (IOException ignore) {}
 		    }
-		    
+		    */
 /*
             Iterator<Entry<NodePortTuple,Long>> iter = DPID_PK_LOSS.entrySet().iterator();
             while (iter.hasNext()) {

@@ -11,8 +11,8 @@ import net.floodlightcontroller.multipathrouting.type.FlowId;
 import net.floodlightcontroller.multipathrouting.type.MultiRoute;
 
 public interface IComputeDecisionService extends IFloodlightService {
-	public MultiRoute sortPaths(MultiRoute multipath);
-	public MultiRoute Route(FlowId fid);
-	public MultiRoute FlowRoute(FlowId fid);
+	public MultiRoute selection_Paths(MultiRoute multipath);
+	public MultiRoute Re_routing_Cross_Layer(FlowId fid);
+	//public MultiRoute FlowRoute(FlowId fid);
 	public void resetcomputeDecision();
 }
