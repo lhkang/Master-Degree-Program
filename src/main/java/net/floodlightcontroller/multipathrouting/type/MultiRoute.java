@@ -9,25 +9,20 @@ import net.floodlightcontroller.routing.Path;
 public class MultiRoute {
 	 protected int routeSize;
 	 protected ArrayList<Path> routes;
-	 protected Set<Integer> location; /*record congestion paths*/
-	 boolean Flag;
-	 protected int sequenceRoute;
+	 protected Set<Integer> Congestion_Mark; /*record congestion paths*/
 	 
 	 public MultiRoute(){
 		 routeSize = 0;
-		 sequenceRoute = 0;
 		 routes = new ArrayList<Path>();
-		 location = new HashSet<Integer>();
-		 Flag = false;
+		 Congestion_Mark = new HashSet<Integer>();
 	 }
 	 
-	 public Path getRoute(int routeCount){
-	     return routes.get(routeCount);
+	 public Path getRoute(int i){
+	     return routes.get(i);
 	 }
 	 
-	 public Path getsequenceRoute(){
-		 sequenceRoute = (sequenceRoute + 1)%routeSize;
-	     return routes.get(sequenceRoute);
+	 public Path getFristRoute(){
+	     return routes.get(0);
 	 }
 	 
 	 public ArrayList<Path> getAllRoute(){
@@ -38,39 +33,21 @@ public class MultiRoute {
 	     return routeSize;    
 	 }
 	
-	public void addRoute(Path route){
+ 	public void addRoute(Path route){
 	     routeSize++;
 	     routes.add(route);
 	}
 	
-	public void initialtion(){
-		location = new HashSet<Integer>();
-		Flag = false;
-		sequenceRoute = 0;
+ 	public void remove_first_element() {
+ 		routes.remove(0);
+ 	}
+ 	
+	public void set_Congestion_Mark(Integer i){
+		Congestion_Mark.add(i);
 	}
 	
-	public void CongestionFlag(boolean Flag){
-		this.Flag = Flag;
-	}
-	
-	public void addlocation(Integer i){
-		location.add(i);
-	}
-	
-	public Set<Integer> getLocation(){
-		return location;
-	}
-	
-	public boolean getFlag(){
-		return Flag;
-	}
-	
-	public boolean isMultiple(){	
-		if(routeSize >= 2){
-			return true;
-		}else{
-			return false;
-		}
+	public Set<Integer> get_Congestion_Mark(){
+		return Congestion_Mark;
 	}
 
 }

@@ -20,6 +20,7 @@ package net.floodlightcontroller.forwarding;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -48,6 +49,7 @@ import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryListener;
 import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryService;
 import net.floodlightcontroller.multipathrouting.IMultiPathRoutingService;
 import net.floodlightcontroller.multipathrouting.type.FlowId;
+import net.floodlightcontroller.multipathrouting.type.LinkWithCost;
 import net.floodlightcontroller.multipathrouting.type.MultiRoute;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.packet.IPv4;
@@ -137,7 +139,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
     private static final long FLOWSET_MASK = ((1L << FLOWSET_BITS) - 1) << FLOWSET_SHIFT;
     private static final long FLOWSET_MAX = (long) (Math.pow(2, FLOWSET_BITS) - 1);
     protected static FlowSetIdRegistry flowSetIdRegistry;
-    protected static Integer routeCount = 0;
+    protected static volatile HashMap<FlowId, MultiRoute> multipathCache;
     
     protected static class FlowSetIdRegistry {
         private volatile Map<NodePortTuple, Set<U64>> nptToFlowSetIds;
@@ -492,10 +494,9 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 
 	    U64 flowSetId = flowSetIdRegistry.generateFlowSetId();
 	    U64 cookie = makeForwardingCookie(decision, flowSetId);
-
-	    Path route = null;
-	    MultiRoute paths = null;
+	    
 	    FlowId id = new FlowId(srcSw,srcPort,dstAp.getNodeId(),dstAp.getPortId());
+	    Path route = null;
 	    
 	    /*
 	    //Dijkstra's algorithm
@@ -503,16 +504,24 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	            srcPort,
 	            dstAp.getNodeId(),
 	            dstAp.getPortId());
-	        
-	    System.out.println("Forwarding path: " + path);
 	    */
-
-	    try{
-	    	paths = computeDecision.Re_routing_Cross_Layer(id);
-	    }catch(Exception ex){
-	        //log.info("error: " + ex.toString());
-	    }
 	    
+	    if(!srcSw.equals(dstAp.getNodeId())) {
+		    if(!multipathCache.containsKey(id) || multipathCache.get(id).getAllRoute().isEmpty()) {
+		    	try{
+			    	MultiRoute paths = computeDecision.Re_routing_Cross_Layer(id);
+			    	route = paths.getFristRoute();
+			    	paths.remove_first_element();
+			    	multipathCache.remove(id);
+			    	multipathCache.put(id, paths);
+		    	}catch(Exception ex){
+			        //log.info("error: " + ex.toString());
+			    }
+		    }else {
+		    	route = multipathCache.get(id).getFristRoute();
+		    	multipathCache.get(id).remove_first_element();
+		    }
+	    }
 /*
     	// show all multiple path 
 	    for(int i = 0; i < paths.getRouteSize();i++){
@@ -520,23 +529,11 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 	    	System.out.println("path :" + i +":" + routing.toString());
 	    }
 */
-	    
-	    if( null == paths){
-	        route =  null;
-	    }else{
-	    	//routeCount = (routeCount+1) % paths.getRouteSize();
-	    	//route = paths.getRoute(routeCount);//multiple paths
-	    	//route = paths.getRoute(0);//single path
-		    route = paths.getsequenceRoute(); //other method to assign multiple paths
-	    }
-	    
 	    route = createPath(route,srcSw, 
 		        	srcPort, 
 		        	dstAp.getNodeId(), 
 		        	dstAp.getPortId());
 	     
-	    //System.out.println("src = " + srcSw + "dst = " + dstAp.getNodeId() + "Forwarding path: " + route.toString());
-	    
 	    Match m = createMatchFromPacket(sw, srcPort, pi, cntx);
 	    
 	    if (! route.getPath().isEmpty()) {
@@ -830,7 +827,8 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
         this.multipath = context.getServiceImpl(IMultiPathRoutingService.class);
         this.computeDecision = context.getServiceImpl(IComputeDecisionService.class);
         flowSetIdRegistry = FlowSetIdRegistry.getInstance();
-
+        multipathCache = new HashMap<FlowId, MultiRoute>();
+        
         Map<String, String> configParameters = context.getConfigParams(this);
         String tmp = configParameters.get("hard-timeout");
         if (tmp != null) {

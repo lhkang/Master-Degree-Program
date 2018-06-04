@@ -160,6 +160,7 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
         return computeMultiPath(rid);
     }
     
+    /*can do well*/
     public void computeNetworkDensity(){
     	int nodeSize = dpidLinks.size();
     	int linkCount = 0;
@@ -174,6 +175,8 @@ public class MultiPathRouting implements IFloodlightModule, ITopologyListener, I
     	//System.out.println("Density: " + Density + " node " + nodeSize + " link " + linkCount/2);
     }
     
+    
+    /*can do well*/
     public List<LinkWithCost> visitOrder( HashSet<LinkWithCost> visitLink, HashSet<DatapathId> seen){
     	
     	List<LinkWithCost> orderLink = new ArrayList<LinkWithCost> ();

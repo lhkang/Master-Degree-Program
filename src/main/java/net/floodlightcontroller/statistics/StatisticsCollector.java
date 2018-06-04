@@ -137,9 +137,9 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 					}
 				}
 			}
-			
-			//System.out.println("Port status size : " + portStats.size());
 			/*
+			System.out.println("Port status size : " + portStats.size());
+			
 			File file = new File("/home/floodlight/Desktop/Experiment_data/bandwidth20.txt");
 		    FileWriter writer = null;
 			
@@ -152,10 +152,10 @@ public class StatisticsCollector implements IFloodlightModule, ITopologyListener
 		            NodePortTuple tuple  = entry.getKey();
 		            SwitchPortBandwidth switchPortBand = entry.getValue();
 		            double data = (double) (switchPortBand.getBitsPerSecondRx().getValue()/(1024*1024)) + (double) (switchPortBand.getBitsPerSecondTx().getValue()/(1024*1024));
-		            writer.write(tuple.getNodeId()+","+tuple.getPortId()+",");		            
+		            writer.write(tuple.getNodeId()+" "+tuple.getPortId()+" ");		            
 		            writer.write(data + "\n");
-		            //System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");
-		            //System.out.println(data);
+		            System.out.print(tuple.getNodeId()+","+tuple.getPortId()+",");
+		            System.out.println(data);
 		        }
 		    } catch (IOException e) {
 		        e.printStackTrace(); // I'd rather declare method with throws IOException and omit this catch.

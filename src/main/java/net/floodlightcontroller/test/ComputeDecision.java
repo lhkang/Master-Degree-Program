@@ -159,7 +159,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
         if (result == null && srcDpid.equals(dstDpid)) 
         	return null;
         
-         //We ignoring the situation if controller does not get the port status
+        //We ignoring the situation if controller does not get the port status
         if(portCollectorSize != 0) {
         	// if occur congestion that re-routing 
 	        if( Congestion_Detection(result) ){
@@ -169,15 +169,21 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 		        flowcache.invalidate(id);
 		        try {
 		        	MultiRoute route = flowcache.get(id);
-		        	for(int i = 0 ; i < result.getRouteSize(); i++){
-			    		if(result.getLocation().contains(i)) continue;
-			    		result.addRoute(route.getRoute(i));
+		        	result = new MultiRoute();
+		        	for(int i = 0 ; i < route.getRouteSize(); i++){
+			    		if(!route.get_Congestion_Mark().contains(i)) {
+			    			result.addRoute(route.getRoute(i));
+			    		}
+			    		else if (route.getAllRoute().size()/2 <= route.get_Congestion_Mark().size()) {
+			    			//This situation is the multipath set have many paths congestion but it have't too many paths can use
+			    			result.addRoute(route.getRoute(i));
+			    		}
 			    	}
 				} catch (ExecutionException e) {
 					//e.printStackTrace();
 				}
 	        }else {
-	        	//No one path congestion and load balance 
+	        	//No one path congestion and load balance
 	        	result = transform_Type(sorting_by_bandwidth(result),null);
 	        }
         }
@@ -211,6 +217,7 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
     	if( 0 == multipath.getRouteSize()){
             return null;
     	}else{
+    		
 	    	//return finding_Node_Disjoint_Path(sorting_by_bandwidth(multipath), 
 	    	//		multipath.getRouteSize());
     		return finding_Link_Disjoint_Path(sorting_by_bandwidth(multipath), 
@@ -303,9 +310,8 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    			disjointPath.addRoute(paths.get(index).getFlowCostPath());
 	    			//record disjoint congestion path, in order to avoid use congestion path
 	    			//It is the batter way that get link capacity * 0.8 to instead of fixed value
-	    			if(paths.get(index).getCost() >= 800){//800Mb/s
-	    				disjointPath.CongestionFlag(true);
-	    				disjointPath.addlocation(index);
+	    			if( paths.get(index).getCost() >= 80 ){//800Mb/s
+	    				disjointPath.set_Congestion_Mark(index);
 	    			}
 	    		}
     		}else {
@@ -332,13 +338,13 @@ public class ComputeDecision implements IFloodlightModule, IComputeDecisionServi
 	    	for (int indx = r.size() - 1; indx > 0; indx -= 2) {
 	    		if(statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId())!= null) {
 	    			SwitchPortBandwidth switchPortBand = statisticsService.getBandwidthConsumption(r.get(indx).getNodeId(), r.get(indx).getPortId());
-	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(8*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(8*1024);
+	    			Long Bandwidth = switchPortBand.getBitsPerSecondRx().getValue()/(1024*1024) + switchPortBand.getBitsPerSecondTx().getValue()/(1024*1024);
 	    			//System.out.println("Bandwidth:" + Bandwidth ); 
-		            if(Bandwidth.intValue() >= 800){
+		            if(Bandwidth.intValue() >= 80){
 		            	return true;
 		    		}
 	    		}else {
-	    			//ignore this situation
+	    			//can't get the port status we ignore this situation
 	    		}
 	    	}
     	}
